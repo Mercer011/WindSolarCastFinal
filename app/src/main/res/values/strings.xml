@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">WindSolarCast</string>
+    <string name="title_splash"><font color="#FFFFFF">Empowering Your </font><font color="#abd50a">Green Energy</font><font color="#FFFFFF"> Decisions!</font></string>
 </resources>

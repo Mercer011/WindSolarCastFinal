@@ -3,14 +3,12 @@ package com.example.windsolarcast
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-//import androidx.compose.ui.semantics.text
-import androidx.core.graphics.values
-//import androidx.privacysandbox.tools.core.generator.build
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Call
@@ -23,53 +21,78 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var etCity: EditText
     private lateinit var btnSearch: Button
+    private lateinit var btnViewWindData: Button
+    private lateinit var btnViewSolarData: Button
     private lateinit var tvDefaultCity: TextView
+    private lateinit var ivLocationIcon: ImageView
 
-    private val weatherApiKey = "315f293daca93eaf2847d326cec66326" // Replace with your actual key
-    private val weatherBaseUrl = "https://api.openweathermap.org/data/2.5/"
-    private val nasaBaseUrl = "https://power.larc.nasa.gov/"
+    private val WEATHER_API_KEY = "315f293daca93eaf2847d326cec66326"
+    private val WEATHER_BASE_URL = "https://api.openweathermap.org/data/2.5/"
 
-    private val defaultCity = "Jalandhar"
-    private val defaultLat = 31.3260
-    private val defaultLon = 75.5762
+    var currentTemperature: Double = 0.0
+    var currentWindSpeed: Float = 0.0f
+    var currentCloudCover: Int = 0
 
-    private var currentCity: String = defaultCity
-    private var temperature: Double = 0.0
-    private var windSpeed: Float = 0.0f
-    private var cloudCover: Int = 0
-    private var ghi: Double = 0.0
-    private var clearSkySolar: Double = 0.0
-    // Add other relevant solar parameters here
+    var currentSolarRadiation: Double = 0.0
+    var currentClearSkySolarRadiation: Double = 0.0
+    var currentLongwaveRadiation: Double = 0.0
+    var currentTopAtmosphereSolarRadiation: Double = 0.0
+    var currentSolarEnergyPotential: Double = 0.0
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // Initialize UI elements
         etCity = findViewById(R.id.etCity)
         btnSearch = findViewById(R.id.btnSearch)
+        btnViewWindData = findViewById(R.id.btnViewWindData)
+        btnViewSolarData = findViewById(R.id.btnViewSolarData)
         tvDefaultCity = findViewById(R.id.tvDefaultCity)
+        ivLocationIcon = findViewById(R.id.ivLocationIcon)
 
-        etCity.setText(defaultCity)
-        fetchWeatherData(defaultCity, defaultLat, defaultLon)
+        // Set default city
+        val defaultCity = "Jalandhar"
         tvDefaultCity.text = defaultCity
+        fetchWeatherData(defaultCity)
 
+        // Set button click listeners
         btnSearch.setOnClickListener {
             val city = etCity.text.toString().trim()
             if (city.isNotEmpty()) {
-                currentCity = city
-                fetchWeatherData(city, defaultLat, defaultLon)
+                fetchWeatherData(city)
                 tvDefaultCity.text = city
             } else {
-                tvDefaultCity.text = "Please enter a city name" // Or show a Toast
+                tvDefaultCity.text = "Please enter a city"
             }
+        }
+
+        btnViewWindData.setOnClickListener {
+            val city = tvDefaultCity.text.toString()
+            val intent = Intent(this, FourthPage::class.java)
+            intent.putExtra("city", city)
+            intent.putExtra("temperature", currentTemperature)
+            intent.putExtra("windSpeed", currentWindSpeed)
+            intent.putExtra("cloudCover", currentCloudCover)
+            startActivity(intent)
+        }
+
+        btnViewSolarData.setOnClickListener {
+            val city = tvDefaultCity.text.toString()
+            val intent = Intent(this, ThirdPage::class.java)
+            intent.putExtra("city", city)
+            intent.putExtra("SolarRadiation", currentSolarRadiation)
+            intent.putExtra("ClearSkySolarRadiation", currentClearSkySolarRadiation)
+            intent.putExtra("LongwaveRadiation", currentLongwaveRadiation)
+            intent.putExtra("TopAtmosphereSolarRadiation", currentTopAtmosphereSolarRadiation)
+            startActivity(intent)
         }
     }
 
     private fun createRetrofitClient(baseUrl: String): Retrofit {
-        val logging = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
-        }
+        val logging = HttpLoggingInterceptor()
+        logging.setLevel(HttpLoggingInterceptor.Level.BODY)
         val client = OkHttpClient.Builder()
             .addInterceptor(logging)
             .build()
@@ -80,10 +103,10 @@ class MainActivity : AppCompatActivity() {
             .build()
     }
 
-    private fun fetchWeatherData(city: String, lat: Double, lon: Double) {
-        val retrofit = createRetrofitClient(weatherBaseUrl)
+    private fun fetchWeatherData(city: String) {
+        val retrofit = createRetrofitClient(WEATHER_BASE_URL)
         val apiService = retrofit.create(WeatherApiService::class.java)
-        apiService.getWeather(city, weatherApiKey, "metric")
+        apiService.getWeather(city, WEATHER_API_KEY, "metric")
             .enqueue(object : Callback<WeatherResponse> {
                 override fun onResponse(
                     call: Call<WeatherResponse>,
@@ -92,85 +115,22 @@ class MainActivity : AppCompatActivity() {
                     if (response.isSuccessful) {
                         val weatherData = response.body()
                         if (weatherData != null) {
-                            temperature = weatherData.main.temp.toDouble()
-                            windSpeed = weatherData.wind.speed
-                            cloudCover = weatherData.clouds.all
-                            fetchSolarAndWindData(lat, lon, windSpeed, cloudCover)
-                        } else {
-                            tvDefaultCity.text = "Could not retrieve weather data"
+                            currentTemperature = weatherData.main.temp.toDouble()
+                            currentWindSpeed = weatherData.wind.speed
+                            currentCloudCover = weatherData.clouds.all
+                            Log.d("MainActivity", "Weather data fetched successfully for $city")
                         }
                     } else {
                         val errorBody = response.errorBody()?.string() ?: "Unknown error"
                         tvDefaultCity.text = "Error fetching weather: $errorBody"
+                        Log.e("MainActivity", "Error fetching weather data: $errorBody")
                     }
                 }
 
                 override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
                     tvDefaultCity.text = "Network error: ${t.message}"
+                    Log.e("MainActivity", "Network error: ${t.message}")
                 }
             })
-    }
-
-    private fun fetchSolarAndWindData(lat: Double, lon: Double, windSpeed: Float, cloudCover: Int) {
-        val retrofit = createRetrofitClient(nasaBaseUrl)
-        val apiService = retrofit.create(NasaPowerApiService::class.java)
-        val startDate = "20240220" // Adjust date range as needed
-        val endDate = "20240227"
-        apiService.getSolarData(lat, lon, startDate, endDate)
-            .enqueue(object : Callback<NasaPowerResponse> {
-                override fun onResponse(
-                    call: Call<NasaPowerResponse>,
-                    response: Response<NasaPowerResponse>
-                ) {
-                    if (response.isSuccessful) {
-                        val responseBody = response.body()
-                        val parameters = responseBody?.properties?.parameter
-                        ghi = parameters?.ALLSKY_SFC_SW_DWN?.values?.lastOrNull() ?: 0.0
-                        clearSkySolar = parameters?.CLRSKY_SFC_SW_DWN?.values?.lastOrNull() ?: 0.0
-                        // Extract other solar parameters as needed
-
-                        showDataChoiceDialog()
-                    } else {
-                        val errorBody = response.errorBody()?.string() ?: "Unknown error"
-                        tvDefaultCity.text = "Error fetching NASA data: $errorBody"
-                    }
-                }
-
-                override fun onFailure(call: Call<NasaPowerResponse>, t: Throwable) {
-                    tvDefaultCity.text = "Network error: ${t.message}"
-                }
-            })
-    }
-
-    private fun showDataChoiceDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("Choose Data Type")
-            .setItems(arrayOf("Wind", "Solar")) { _, which ->
-                when (which) {
-                    0 -> navigateToWindData()
-                    1 -> navigateToSolarData()
-                }
-            }
-        builder.create().show()
-    }
-
-    private fun navigateToWindData() {
-        val intent = Intent(this, WindDataActivity::class.java)
-        intent.putExtra("city", currentCity)
-        intent.putExtra("temperature", temperature)
-        intent.putExtra("windSpeed", windSpeed)
-        intent.putExtra("cloudCover", cloudCover)
-        startActivity(intent)
-    }
-
-    private fun navigateToSolarData() {
-        val intent = Intent(this, SolarDataActivity::class.java)
-        intent.putExtra("city", currentCity)
-        intent.putExtra("temperature", temperature)
-        intent.putExtra("cloudCover", cloudCover)
-        intent.putExtra("ghi", ghi)
-        intent.putExtra("clearSkySolar", clearSkySolar)
-        // Put other solar parameters as extras
-        startActivity(intent)
     }
 }

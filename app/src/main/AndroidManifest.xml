@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -12,20 +14,38 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WindSolarCast"
         tools:targetApi="31">
+
+        <!-- ✅ Google Maps API Key placed correctly inside <application> -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyDRZNp-XsAoI-rHhgeS0MC-dR9mL3tvKN0" />
+        <activity android:name=".SecondPage"
+            android:exported="true"
+            />
         <activity
-            android:name=".SolarDataActivity"
-            android:exported="false" />
+            android:name=".FourthPage"
+            android:exported="true" />
         <activity
-            android:name=".WindDataActivity"
-            android:exported="false" />
+            android:name=".ThirdPage"
+            android:exported="true" />
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".SplashScreen"
+            android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".SolarDataActivity"
+            android:exported="true" />
+        <activity
+            android:name=".WindDataActivity"
+            android:exported="true" />
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
         </activity>
     </application>
 
